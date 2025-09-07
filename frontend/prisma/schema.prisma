@@ -1,0 +1,266 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// NextAuth.js Required Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  walletAddress String?   @unique
+  password      String?   // Hashed password for email signup
+  
+  // FluxTranche specific fields
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  profile       UserProfile?
+  bankAccounts  BankAccount[]
+  walletAddresses WalletAddress[]
+  incomes       Income[]
+  expenses      Expense[]
+  goals         FinancialGoal[]
+  portfolioHistory PortfolioSnapshot[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// FluxTranche User Profile
+model UserProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  
+  // Personal Information
+  firstName             String?
+  lastName              String?
+  dateOfBirth           DateTime?
+  phoneNumber           String?
+  address               String?
+  city                  String?
+  country               String?
+  
+  // Financial Profile
+  currentNetWorth       Float    @default(0)
+  monthlyIncome         Float    @default(0)
+  monthlyExpenses       Float    @default(0)
+  emergencyFundMonths   Int      @default(3)
+  
+  // Investment Profile
+  investmentExperience  String?  // "beginner", "intermediate", "advanced"
+  riskTolerance         Int      @default(5) // 0-10 scale
+  investmentTimeHorizon String?  // "short", "medium", "long"
+  investmentGoals       Json?    // Array of goals
+  
+  // Strategy Configuration
+  selectedStrategy      String?  // P1-P12
+  strategyConfig        Json?    // Strategy specific settings
+  
+  // Preferences
+  preferredCurrency     String   @default("USD")
+  notifications         Json?    // Notification preferences
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Bank Accounts
+model BankAccount {
+  id            String   @id @default(cuid())
+  userId        String
+  
+  bankName      String
+  accountType   String   // "checking", "savings", "investment", etc.
+  accountName   String?
+  balance       Float    @default(0)
+  currency      String   @default("USD")
+  isActive      Boolean  @default(true)
+  lastUpdated   DateTime @default(now())
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Crypto Wallet Addresses
+model WalletAddress {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  chain           String   // "ethereum", "cosmos", "polygon", etc.
+  address         String
+  coin            String?  // User-selected coin (USDC, ETH, AVAIL, etc.)
+  name            String?  // User-defined name
+  validatorAddress String? // For staking purposes
+  isActive        Boolean  @default(true)
+  
+  // Cached balance data
+  liquidBalance   Float    @default(0)
+  stakedBalance   Float    @default(0)
+  unstakingBalance Float   @default(0)
+  delegatorRewards Float   @default(0)
+  totalBalance    Float    @default(0)
+  lastBalanceUpdate DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, chain, address, coin])
+}
+
+// Income Tracking
+model Income {
+  id            String   @id @default(cuid())
+  userId        String
+  
+  source        String   // "salary", "freelance", "investment", etc.
+  category      String?
+  subcategory   String?
+  amount        Float
+  currency      String   @default("USD")
+  frequency     String   // "monthly", "weekly", "yearly", "one-time"
+  
+  // Payment details
+  paymentDay    Int?     // Day of month for recurring income
+  nextPayment   DateTime?
+  isRecurring   Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  
+  description   String?
+  tags          Json?    // Array of tags
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Expense Tracking
+model Expense {
+  id            String   @id @default(cuid())
+  userId        String
+  
+  name          String
+  category      String   // "housing", "food", "transport", etc.
+  subcategory   String?
+  amount        Float
+  currency      String   @default("USD")
+  frequency     String   // "monthly", "weekly", "yearly", "one-time"
+  
+  // Payment details
+  paymentDay    Int?     // Day of month for recurring expenses
+  nextPayment   DateTime?
+  isRecurring   Boolean  @default(false)
+  isEssential   Boolean  @default(false)
+  
+  description   String?
+  tags          Json?    // Array of tags
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Financial Goals
+model FinancialGoal {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  title           String
+  description     String?
+  targetAmount    Float
+  currentAmount   Float    @default(0)
+  currency        String   @default("USD")
+  targetDate      DateTime?
+  priority        String   @default("medium") // "low", "medium", "high"
+  category        String   // "emergency", "retirement", "house", etc.
+  
+  isCompleted     Boolean  @default(false)
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Portfolio Performance Snapshots
+model PortfolioSnapshot {
+  id                  String   @id @default(cuid())
+  userId              String
+  
+  // Total portfolio values
+  totalBalance        Float
+  liquidBalance       Float
+  stakedBalance       Float
+  bankBalance         Float
+  
+  // Performance metrics
+  totalReturn         Float?
+  dailyChange         Float?
+  weeklyChange        Float?
+  monthlyChange       Float?
+  
+  // Asset allocation
+  traditionalAssets   Float    @default(0)
+  cryptoAssets        Float    @default(0)
+  stakedAssets        Float    @default(0)
+  
+  snapshotDate        DateTime @default(now())
+  
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, snapshotDate])
+}

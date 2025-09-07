@@ -1,0 +1,57 @@
+{
+  "name": "fluxtranche",
+  "version": "1.0.0",
+  "description": "AI-powered DeFi yield vault with tranche system for ETHIstanbul 2025",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend/ai-risk-engine",
+    "backend/keeper",
+    "yellow"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:contracts\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:contracts": "cd contracts && forge build --watch",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "concurrently \"npm run dev:ai\" \"npm run dev:keeper\"",
+    "dev:ai": "cd backend/ai-risk-engine && npm run dev",
+    "dev:keeper": "cd backend/keeper && npm run dev",
+    "build": "npm run build:contracts && npm run build:frontend && npm run build:backend",
+    "build:contracts": "cd contracts && forge build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "npm run build:ai && npm run build:keeper",
+    "build:ai": "cd backend/ai-risk-engine && npm run build",
+    "build:keeper": "cd backend/keeper && npm run build",
+    "test": "npm run test:contracts && npm run test:frontend && npm run test:backend",
+    "test:contracts": "cd contracts && forge test",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "npm run test:ai && npm run test:keeper",
+    "test:ai": "cd backend/ai-risk-engine && npm run test",
+    "test:keeper": "cd backend/keeper && npm run test",
+    "deploy": "cd contracts && forge script script/DeployRise.s.sol --rpc-url $RISE_RPC_URL --broadcast",
+    "clean": "rm -rf node_modules frontend/node_modules backend/*/node_modules contracts/out contracts/cache"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.2.5",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fluxtranche/fluxtranche"
+  },
+  "keywords": [
+    "defi",
+    "blockchain",
+    "ethereum",
+    "rise",
+    "ai",
+    "yield",
+    "tranche",
+    "erc4626"
+  ],
+  "author": "FluxTranche Team",
+  "license": "MIT"
+}

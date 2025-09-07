@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yellow Network Nitrolite Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #4a5568;
+        }
+        input, button, select {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        input:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .status.connected {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        .status.disconnected {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        .logs {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1a202c;
+            color: #a0aec0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-info { color: #63b3ed; }
+        .log-success { color: #68d391; }
+        .log-error { color: #fc8181; }
+        .log-warning { color: #fbd38d; }
+        .channel-info {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .stream-progress {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 Yellow Network Nitrolite Demo</h1>
+        
+        <!-- Connection Status -->
+        <div class="section">
+            <h3>Connection Status</h3>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+            <button id="connectBtn" onclick="connect()">Connect to WebSocket</button>
+        </div>
+
+        <!-- Channel Management -->
+        <div class="section">
+            <h3>Channel Management</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="participant1">Participant 1:</label>
+                    <input type="text" id="participant1" value="0x1234...5678" placeholder="Address">
+                </div>
+                <div class="control-group">
+                    <label for="participant2">Participant 2:</label>
+                    <input type="text" id="participant2" value="0x9876...5432" placeholder="Address">
+                </div>
+                <div class="control-group">
+                    <label for="initialBalance">Initial Balance:</label>
+                    <input type="number" id="initialBalance" value="1000" placeholder="Amount">
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button onclick="openChannel()">Open Channel</button>
+                </div>
+            </div>
+            <div id="channelInfo"></div>
+        </div>
+
+        <!-- Streaming -->
+        <div class="section">
+            <h3>Payment Streaming</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="channelId">Channel ID:</label>
+                    <input type="text" id="channelId" placeholder="Channel ID">
+                </div>
+                <div class="control-group">
+                    <label for="recipient">Recipient:</label>
+                    <input type="text" id="recipient" value="0x9876...5432" placeholder="Address">
+                </div>
+                <div class="control-group">
+                    <label for="amount">Amount:</label>
+                    <input type="number" id="amount" value="100" placeholder="Amount to stream">
+                </div>
+                <div class="control-group">
+                    <label for="memo">Memo:</label>
+                    <input type="text" id="memo" placeholder="Optional memo">
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button onclick="startStream()">Start Stream</button>
+                </div>
+            </div>
+            <div id="streamProgress"></div>
+        </div>
+
+        <!-- Channel Status -->
+        <div class="section">
+            <h3>Channel Status</h3>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="statusChannelId">Channel ID:</label>
+                    <input type="text" id="statusChannelId" placeholder="Channel ID">
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button onclick="getChannelStatus()">Get Status</button>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button onclick="settleChannel()">Settle Channel</button>
+                </div>
+            </div>
+            <div id="channelStatus"></div>
+        </div>
+
+        <!-- Logs -->
+        <div class="section">
+            <h3>Activity Logs</h3>
+            <div id="logs" class="logs">
+                <div class="log-entry log-info">Ready to connect...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentChannelId = null;
+        let activeStreams = new Map();
+
+        const API_BASE = 'http://localhost:4002/api';
+        const WS_URL = 'ws://localhost:4002';
+
+        function log(message, type = 'info') {
+            const logsContainer = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsContainer.appendChild(entry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            if (connected) {
+                statusEl.textContent = 'Connected ✅';
+                statusEl.className = 'status connected';
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.onclick = disconnect;
+            } else {
+                statusEl.textContent = 'Disconnected ❌';
+                statusEl.className = 'status disconnected';
+                connectBtn.textContent = 'Connect to WebSocket';
+                connectBtn.onclick = connect;
+            }
+        }
+
+        function connect() {
+            if (ws) {
+                ws.close();
+                return;
+            }
+
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = function() {
+                log('Connected to Yellow Network', 'success');
+                updateConnectionStatus(true);
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (error) {
+                    log('Error parsing message: ' + error.message, 'error');
+                }
+            };
+
+            ws.onclose = function() {
+                log('Disconnected from server', 'warning');
+                updateConnectionStatus(false);
+                ws = null;
+            };
+
+            ws.onerror = function(error) {
+                log('WebSocket error: ' + error.message, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'welcome':
+                    log(data.message, 'success');
+                    break;
+                case 'stream_started':
+                    log(`Stream started: ${data.streamId} in channel ${data.channelId}`, 'success');
+                    break;
+                case 'stream_progress':
+                    updateStreamProgress(data.streamId, data.progress, data.streamedAmount);
+                    break;
+                case 'stream_completed':
+                    log(`Stream completed: ${data.streamId} (${data.finalAmount} tokens)`, 'success');
+                    removeStreamProgress(data.streamId);
+                    break;
+                case 'channel_settled':
+                    log(`Channel settled: ${data.channelId}`, 'success');
+                    displaySettlement(data.settlement);
+                    break;
+                default:
+                    log(`Received: ${JSON.stringify(data)}`, 'info');
+            }
+        }
+
+        function subscribeToChannel(channelId) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'subscribe',
+                    channelId: channelId
+                }));
+                log(`Subscribed to channel: ${channelId}`, 'info');
+            }
+        }
+
+        async function openChannel() {
+            const participant1 = document.getElementById('participant1').value;
+            const participant2 = document.getElementById('participant2').value;
+            const initialBalance = parseFloat(document.getElementById('initialBalance').value);
+
+            try {
+                const response = await fetch(`${API_BASE}/channel/open`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participant1, participant2, initialBalance })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    currentChannelId = result.channelId;
+                    document.getElementById('channelId').value = result.channelId;
+                    document.getElementById('statusChannelId').value = result.channelId;
+                    
+                    displayChannelInfo(result);
+                    subscribeToChannel(result.channelId);
+                    log(`Channel opened: ${result.channelId}`, 'success');
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function startStream() {
+            const channelId = document.getElementById('channelId').value;
+            const recipient = document.getElementById('recipient').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const memo = document.getElementById('memo').value;
+
+            if (!channelId) {
+                log('Please provide a channel ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/channel/${channelId}/stream`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipient, amount, memo })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    createStreamProgress(result.streamId, result.amount);
+                    log(`Stream started: ${result.streamId}`, 'success');
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getChannelStatus() {
+            const channelId = document.getElementById('statusChannelId').value;
+
+            if (!channelId) {
+                log('Please provide a channel ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/channel/${channelId}/status`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayChannelStatus(result);
+                    log('Channel status updated', 'success');
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function settleChannel() {
+            const channelId = document.getElementById('statusChannelId').value;
+
+            if (!channelId) {
+                log('Please provide a channel ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/channel/${channelId}/settle`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    log(`Channel settled: ${channelId}`, 'success');
+                    displaySettlement(result.settlement);
+                } else {
+                    log(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        function displayChannelInfo(channelInfo) {
+            const container = document.getElementById('channelInfo');
+            container.innerHTML = `
+                <div class="channel-info">
+                    <h4>Channel Created</h4>
+                    <p><strong>ID:</strong> ${channelInfo.channelId}</p>
+                    <p><strong>Participants:</strong> ${channelInfo.participants.join(' ↔ ')}</p>
+                    <p><strong>Balance:</strong> ${channelInfo.balance} tokens</p>
+                    <p><strong>Status:</strong> ${channelInfo.status}</p>
+                </div>
+            `;
+        }
+
+        function displayChannelStatus(status) {
+            const container = document.getElementById('channelStatus');
+            const channel = status.channel;
+            const streams = status.streams;
+            const summary = status.summary;
+
+            let streamsHtml = '';
+            if (streams.length > 0) {
+                streamsHtml = `
+                    <h5>Active Streams:</h5>
+                    ${streams.map(stream => `
+                        <div class="stream-progress">
+                            <p><strong>Stream ${stream.id}</strong></p>
+                            <p>From: ${stream.from} → To: ${stream.to}</p>
+                            <p>Amount: ${stream.amount} | Progress: ${(stream.progress * 100).toFixed(1)}%</p>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${stream.progress * 100}%"></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="channel-info">
+                    <h4>Channel Status</h4>
+                    <p><strong>ID:</strong> ${channel.id}</p>
+                    <p><strong>Status:</strong> ${channel.status}</p>
+                    <p><strong>Current Balance:</strong> ${channel.currentBalance}</p>
+                    <p><strong>Total Streamed:</strong> ${summary.totalStreamed}</p>
+                    <p><strong>Active Streams:</strong> ${summary.activeStreams}</p>
+                    ${streamsHtml}
+                </div>
+            `;
+        }
+
+        function createStreamProgress(streamId, totalAmount) {
+            const container = document.getElementById('streamProgress');
+            const progressDiv = document.createElement('div');
+            progressDiv.id = `stream-${streamId}`;
+            progressDiv.className = 'stream-progress';
+            progressDiv.innerHTML = `
+                <p><strong>Stream: ${streamId}</strong></p>
+                <p>Total Amount: ${totalAmount}</p>
+                <p id="progress-text-${streamId}">Progress: 0%</p>
+                <div class="progress-bar">
+                    <div id="progress-fill-${streamId}" class="progress-fill" style="width: 0%"></div>
+                </div>
+            `;
+            container.appendChild(progressDiv);
+            activeStreams.set(streamId, { totalAmount });
+        }
+
+        function updateStreamProgress(streamId, progress, streamedAmount) {
+            const progressText = document.getElementById(`progress-text-${streamId}`);
+            const progressFill = document.getElementById(`progress-fill-${streamId}`);
+            
+            if (progressText && progressFill) {
+                const percentage = (progress * 100).toFixed(1);
+                progressText.textContent = `Progress: ${percentage}% (${streamedAmount.toFixed(6)} tokens)`;
+                progressFill.style.width = `${progress * 100}%`;
+            }
+        }
+
+        function removeStreamProgress(streamId) {
+            const progressDiv = document.getElementById(`stream-${streamId}`);
+            if (progressDiv) {
+                setTimeout(() => progressDiv.remove(), 3000);
+            }
+            activeStreams.delete(streamId);
+        }
+
+        function displaySettlement(settlement) {
+            const container = document.getElementById('channelStatus');
+            container.innerHTML = `
+                <div class="channel-info">
+                    <h4>Channel Settlement</h4>
+                    <p><strong>Channel ID:</strong> ${settlement.channelId}</p>
+                    <p><strong>Total Streamed:</strong> ${settlement.totalStreamed}</p>
+                    <p><strong>Final Balances:</strong></p>
+                    <ul>
+                        ${Object.entries(settlement.finalBalances).map(([addr, balance]) => 
+                            `<li>${addr}: ${balance} tokens</li>`
+                        ).join('')}
+                    </ul>
+                    <p><strong>Settlement Time:</strong> ${new Date(settlement.settledAt).toLocaleString()}</p>
+                    ${settlement.txHash ? `<p><strong>Tx Hash:</strong> ${settlement.txHash}</p>` : ''}
+                </div>
+            `;
+        }
+
+        // Auto-connect on page load
+        window.onload = function() {
+            setTimeout(connect, 1000);
+        };
+    </script>
+</body>
+</html>
